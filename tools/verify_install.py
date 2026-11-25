@@ -28,6 +28,16 @@ def value(root, path, name=""):
         return None
 
 
+def has_value(path, name):
+    """Open with's entries are empty REG_NONE values (they read back as None): does it exist?"""
+    try:
+        with winreg.OpenKey(HKCU, path) as k:
+            winreg.QueryValueEx(k, name)
+            return True
+    except OSError:
+        return False
+
+
 def check(ok, what, p):
     print(("ok    " if ok else "FAIL  ") + what)
     if not ok:
@@ -44,7 +54,7 @@ def installed():
     cmd = value(HKCU, COMMAND) or ""
     check(str(exe).lower() in cmd.lower() and cmd.endswith('"%1"'), f"SQLite files open with the installed exe ({cmd})", p)
     for ext in ("db", "sqlite", "sqlite3"):
-        check(value(HKCU, rf"Software\Classes\.{ext}\OpenWithProgids", PROGID) is not None, f".{ext} Open with lists PR7-DB", p)
+        check(has_value(rf"Software\Classes\.{ext}\OpenWithProgids", PROGID), f".{ext} Open with lists PR7-DB", p)
     with tempfile.TemporaryDirectory() as d:
         out = Path(d) / "out.json"
         try:

@@ -18,12 +18,21 @@ def test_open_with_registers_and_unregisters():
                 return winreg.QueryValueEx(k, name)[0]
         except OSError:
             return None
+    def exists(path, name):
+        """Open with's entries are empty REG_NONE values: they read back as None, so ask whether they exist."""
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, path) as k:
+                winreg.QueryValueEx(k, name)
+                return True
+        except OSError:
+            return False
     try:
         shell.register()
         assert shell.registered()
         assert value(rf"Software\Classes\{shell.PROGID}\shell\open\command").endswith('"%1"')
         for ext in shell.EXTS:
-            assert value(rf"Software\Classes\.{ext}\OpenWithProgids", shell.PROGID) is not None
+            assert exists(rf"Software\Classes\.{ext}\OpenWithProgids", shell.PROGID)
     finally:
         shell.unregister()
     assert not shell.registered() and value(rf"Software\Classes\{shell.PROGID}") is None
+    assert not exists(r"Software\Classes\.db\OpenWithProgids", shell.PROGID)

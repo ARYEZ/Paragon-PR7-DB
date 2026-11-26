@@ -24,6 +24,16 @@ def qapp(tmp_path_factory):
     theme.load_fonts()
     yield app
     app.clipboard().clear()
+    # Tidy shutdown while Qt is still whole: leftover windows deleted, pending deletes run, Python's cycles collected.
+    import gc
+    from PySide6.QtCore import QCoreApplication, QEvent, QThreadPool
+    for w in app.topLevelWidgets():
+        w.close()
+        w.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    QThreadPool.globalInstance().waitForDone(5000)
+    gc.collect()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 @pytest.fixture
@@ -51,9 +61,9 @@ def window(qapp, monkeypatch, tmp_path):
     gc.collect()          # on the main thread now (PR7-U's lesson)
 
 
-# Qt's own teardown of its global objects at interpreter exit sometimes aborts (Windows CI, Linux too) after every test has passed
-# (CI: "Fatal Python error: Aborted", no Python frame). Once pytest has printed its summary, leave with its exit code
-# and skip that teardown.
+# Qt's teardown at process exit sometimes crashes on Windows after every test has passed (CI: an access violation even
+# inside os._exit, which still runs each DLL's shutdown code). Once pytest has printed its summary, Windows ends the
+# process with TerminateProcess (no DLL shutdown), keeping pytest's exit code. Only the test process ends this way.
 _status = {}
 
 
@@ -62,7 +72,10 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 def pytest_unconfigure(config):
-    if "code" in _status:
+    if "code" in _status and sys.platform == "win32":
+        import ctypes
         sys.stdout.flush()
         sys.stderr.flush()
-        os._exit(_status["code"])
+        k = ctypes.windll.kernel32
+        k.GetCurrentProcess.restype = ctypes.c_void_p
+        k.TerminateProcess(ctypes.c_void_p(k.GetCurrentProcess()), _status["code"])

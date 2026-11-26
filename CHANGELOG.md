@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Knows PR7-HW, PR7-BK and PR7-TM (the family list), as 0.1.2 meant to ship; the test run no longer trips over Qt's shutdown on Windows.
+
 ## 0.1.2
 
 - The family list (`family.py`) knows the three newest Paragon apps: PR7-HW (hardware information), PR7-BK

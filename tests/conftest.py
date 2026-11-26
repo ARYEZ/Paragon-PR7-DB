@@ -51,7 +51,7 @@ def window(qapp, monkeypatch, tmp_path):
     gc.collect()          # on the main thread now (PR7-U's lesson)
 
 
-# Qt's own teardown of its global objects at interpreter exit sometimes aborts on Windows after every test has passed
+# Qt's own teardown of its global objects at interpreter exit sometimes aborts (Windows CI, Linux too) after every test has passed
 # (CI: "Fatal Python error: Aborted", no Python frame). Once pytest has printed its summary, leave with its exit code
 # and skip that teardown.
 _status = {}
@@ -62,7 +62,7 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 def pytest_unconfigure(config):
-    if "code" in _status and sys.platform == "win32":
+    if "code" in _status:
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(_status["code"])
